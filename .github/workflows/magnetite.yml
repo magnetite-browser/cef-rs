@@ -1,0 +1,53 @@
+name: Magnetite
+
+# The checks of Magnetite's fork (MAGNETITE.md). Upstream's workflows are for
+# its `dev` branch and partly only run in its own organisation.
+on:
+  push:
+    branches: [magnetite]
+  pull_request:
+    branches: [magnetite]
+  # By hand (Actions → Magnetite → Run workflow): a run that failed to start cannot be re-run.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: magnetite-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The workspace builds and passes its tests against the official CEF
+  # archive of the version the bindings are for (the one in Cargo.toml).
+  build:
+    name: Build and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -q && sudo apt-get install -yq libglib2.0-dev
+      - name: Format
+        run: cargo fmt --check
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
+      - name: Fetch CEF
+        run: |
+          cef="$HOME/.local/share/cef"
+          cargo run -p export-cef-dir -- "$cef"
+          echo "CEF_PATH=$cef" >> "$GITHUB_ENV"
+          if [ "$RUNNER_OS" = macOS ]; then
+            echo "DYLD_FALLBACK_LIBRARY_PATH=$cef:$cef/Chromium Embedded Framework.framework/Libraries" >> "$GITHUB_ENV"
+          else
+            echo "LD_LIBRARY_PATH=$cef" >> "$GITHUB_ENV"
+          fi
+      - name: Build
+        run: cargo build --locked
+      - name: Test
+        run: cargo test --locked
