@@ -25,9 +25,12 @@ for it. The licence is upstream's (Apache-2.0 or MIT).
 2. Set the workspace version in `Cargo.toml` to `<crate version>+<CEF version>`.
 3. Generate the bindings:
    `cargo run -p update-bindings -- -b -d -t aarch64-apple-darwin`.
-   It downloads the official archive of that version into `target/`. The
-   files of the other targets in `sys/src/bindings` get the same version
-   constants.
+   It downloads the official archive of that version into `target/` and
+   writes the file of that one target only. For a patch release of CEF only
+   three constants change (`CEF_VERSION`, `CEF_VERSION_PATCH`,
+   `CHROME_VERSION_PATCH`): set them by hand in the other targets' files in
+   `sys/src/bindings`. If more than these changed, generate each target's
+   file with `-t <target>` (so far only done for the target above).
 4. Open a pull request against `magnetite` and merge it with a merge commit.
 5. In the browser: pin the new commit, and the CEF release in `scripts/cef.sh`.
 
